@@ -9,19 +9,24 @@ let productos = [];
 let carrito = [];
 
 // ====================================
-// Convertir CSV a JSON (parsing seguro)
+// Convertir CSV a JSON y normalizar columnas
 // ====================================
 function csvToJSON(csv) {
   const lines = csv.trim().split("\n");
-  const headers = lines[0].split(",");
-  const result = [];
+  const headersRaw = lines[0].split(",");
+  const headers = headersRaw.map(h => h.trim().toLowerCase());
 
+  const result = [];
   for (let i = 1; i < lines.length; i++) {
     const currentline = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
     if (currentline.length === headers.length) {
       const obj = {};
       headers.forEach((header, j) => {
-        obj[header.trim()] = currentline[j].replace(/^"|"$/g,'').trim();
+        const value = currentline[j].replace(/^"|"$/g,'').trim();
+        if(header.includes("nombre")) obj.Nombre = value;
+        else if(header.includes("precio")) obj.Precio = value;
+        else if(header.includes("imagen")) obj.Imagen = value;
+        else if(header.includes("descrip")) obj.Descripción = value;
       });
       result.push(obj);
     }
@@ -66,7 +71,7 @@ function mostrarProductos() {
 }
 
 // ====================================
-// Agregar al carrito
+// Carrito
 // ====================================
 function agregarAlCarrito(nombre) {
   const prod = productos.find(p => p.Nombre === nombre);
@@ -99,7 +104,7 @@ function actualizarCarrito() {
 }
 
 // ====================================
-// Modal carrito (abrir/cerrar)
+// Modal carrito
 // ====================================
 const modal = document.getElementById("modal-carrito");
 document.getElementById("ver-carrito").addEventListener("click", () => {
@@ -124,15 +129,10 @@ document.getElementById("pedido-whatsapp").addEventListener("click", async () =>
     return alert("Debes completar todos los datos.");
   }
 
-  const total = carrito.reduce((sum,p) => sum + parseFloat(p.Precio), 0).toFixed(2);
+  const total = carrito.reduce((sum, p) => sum + parseFloat(p.Precio), 0).toFixed(2);
+  const pedidoObj = { cliente, items: carrito, total };
 
-  const pedidoObj = {
-    cliente,
-    items: carrito,
-    total
-  };
-
-  // 🚀 Guardar pedido en Google Sheets usando Web App
+  // Guardar pedido en Google Sheets via Web App
   try {
     const res = await fetch(webhookURL, {
       method: "POST",
@@ -147,7 +147,7 @@ document.getElementById("pedido-whatsapp").addEventListener("click", async () =>
     return;
   }
 
-  // ✉️ Abrir WhatsApp con mensaje
+  // Crear mensaje WhatsApp
   let mensaje = "Hola, quiero hacer el siguiente pedido:\n\n";
   carrito.forEach(p => {
     mensaje += `${p.Nombre} - €${parseFloat(p.Precio).toFixed(2)}\n`;
