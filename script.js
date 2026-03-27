@@ -2,14 +2,14 @@
 // Configuración
 // ====================================
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ7Yrz8-vvHRk6sJKBfDkqkv5XMOS5fFBBzqSMVKhmQzBIptwBQAy56JiNO23s7KixBQnFN41uh7DIe/pub?output=csv";
-const whatsappNumber = "34643640757";   // Tu número de WhatsApp
+const webhookURL = "https://script.google.com/macros/s/AKfycbxbm0rLAyNE-X8_MDhf_ikCeRwBSlMX7GacjLOUX1fBbFwdehg6x8BmfJOSfJ4uxFis/exec";
+const whatsappNumber = "34643640757"; // Tu número de WhatsApp
 
-// Variables
 let productos = [];
 let carrito = [];
 
 // ====================================
-// Convertir CSV a JSON
+// Convertir CSV a JSON (parsing seguro)
 // ====================================
 function csvToJSON(csv) {
   const lines = csv.trim().split("\n");
@@ -17,7 +17,7 @@ function csvToJSON(csv) {
   const result = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const currentline = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); // Maneja comas dentro de comillas
+    const currentline = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
     if (currentline.length === headers.length) {
       const obj = {};
       headers.forEach((header, j) => {
@@ -36,37 +36,37 @@ async function cargarProductos() {
   try {
     const response = await fetch(sheetURL);
     if (!response.ok) throw new Error("No se pudo cargar la hoja de productos.");
-    const data = await response.text();
-    productos = csvToJSON(data);
+    const text = await response.text();
+    productos = csvToJSON(text);
     mostrarProductos();
   } catch (err) {
     console.error(err);
-    alert("Error al cargar los productos. Comprueba el enlace CSV.");
+    alert("Error al cargar productos. Revisa el enlace CSV de Google Sheets.");
   }
 }
 
 // ====================================
-// Mostrar productos
+// Mostrar productos en HTML
 // ====================================
 function mostrarProductos() {
-  const contenedor = document.getElementById("productos");
-  contenedor.innerHTML = "";
+  const cont = document.getElementById("productos");
+  cont.innerHTML = "";
   productos.forEach(prod => {
-    const div = document.createElement("div");
-    div.className = "producto";
-    div.innerHTML = `
+    const card = document.createElement("div");
+    card.className = "producto";
+    card.innerHTML = `
       <img src="${prod.Imagen}" alt="${prod.Nombre}">
       <h3>${prod.Nombre}</h3>
       <p>${prod.Descripción}</p>
       <p>€${parseFloat(prod.Precio).toFixed(2)}</p>
       <button onclick="agregarAlCarrito('${prod.Nombre}')">Añadir al carrito</button>
     `;
-    contenedor.appendChild(div);
+    cont.appendChild(card);
   });
 }
 
 // ====================================
-// Carrito
+// Agregar al carrito
 // ====================================
 function agregarAlCarrito(nombre) {
   const prod = productos.find(p => p.Nombre === nombre);
@@ -76,8 +76,8 @@ function agregarAlCarrito(nombre) {
   alert(`${prod.Nombre} agregado al carrito.`);
 }
 
-function eliminarDelCarrito(index) {
-  carrito.splice(index, 1);
+function eliminarDelCarrito(i) {
+  carrito.splice(i, 1);
   actualizarCarrito();
 }
 
@@ -89,8 +89,8 @@ function actualizarCarrito() {
     total += parseFloat(p.Precio);
     lista.innerHTML += `
       <p>
-        ${p.Nombre} - €${parseFloat(p.Precio).toFixed(2)} 
-        <button onclick="eliminarDelCarrito(${i})" style="margin-left:10px;color:red;">X</button>
+        ${p.Nombre} - €${parseFloat(p.Precio).toFixed(2)}
+        <button onclick="eliminarDelCarrito(${i})" class="btn-eliminar">X</button>
       </p>
     `;
   });
@@ -99,7 +99,7 @@ function actualizarCarrito() {
 }
 
 // ====================================
-// Modal carrito
+// Modal carrito (abrir/cerrar)
 // ====================================
 const modal = document.getElementById("modal-carrito");
 document.getElementById("ver-carrito").addEventListener("click", () => {
@@ -110,21 +110,58 @@ document.getElementById("cerrar-carrito").addEventListener("click", () => {
 });
 
 // ====================================
-// Enviar pedido por WhatsApp
+// Enviar pedido (Web App + WhatsApp)
 // ====================================
-document.getElementById("pedido-whatsapp").addEventListener("click", () => {
+document.getElementById("pedido-whatsapp").addEventListener("click", async () => {
   if (carrito.length === 0) return alert("El carrito está vacío.");
+
+  const cliente = {
+    nombre: prompt("Tu nombre:"),
+    direccion: prompt("Tu dirección:"),
+    telefono: prompt("Tu teléfono:")
+  };
+  if (!cliente.nombre || !cliente.direccion || !cliente.telefono) {
+    return alert("Debes completar todos los datos.");
+  }
+
+  const total = carrito.reduce((sum,p) => sum + parseFloat(p.Precio), 0).toFixed(2);
+
+  const pedidoObj = {
+    cliente,
+    items: carrito,
+    total
+  };
+
+  // 🚀 Guardar pedido en Google Sheets usando Web App
+  try {
+    const res = await fetch(webhookURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pedidoObj)
+    });
+    const json = await res.json();
+    if (json.status !== "ok") throw new Error("No se guardó en la hoja.");
+  } catch (err) {
+    console.error(err);
+    alert("Error al guardar pedido en Google Sheets.");
+    return;
+  }
+
+  // ✉️ Abrir WhatsApp con mensaje
   let mensaje = "Hola, quiero hacer el siguiente pedido:\n\n";
   carrito.forEach(p => {
     mensaje += `${p.Nombre} - €${parseFloat(p.Precio).toFixed(2)}\n`;
   });
-  const total = carrito.reduce((sum, p) => sum + parseFloat(p.Precio), 0).toFixed(2);
   mensaje += `\nTotal: €${total}\n\n`;
-  mensaje += "Mi nombre: \nDirección: \nTeléfono: ";
+  mensaje += `Nombre: ${cliente.nombre}\nDirección: ${cliente.direccion}\nTeléfono: ${cliente.telefono}`;
+
   window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(mensaje)}`);
+
+  carrito = [];
+  actualizarCarrito();
 });
 
 // ====================================
-// Inicializar
+// Inicializador
 // ====================================
 cargarProductos();
