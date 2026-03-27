@@ -1,1 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Tienda Online</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <h1>Mi Tienda Online</h1>
+    <div id="carrito">
+      <button id="ver-carrito">🛒 Carrito (0)</button>
+    </div>
+  </header>
 
+  <!-- Productos -->
+  <main id="productos" class="grid-container">
+    <!-- Productos se cargarán aquí dinámicamente -->
+  </main>
+
+  <!-- Modal del carrito -->
+  <div id="modal-carrito" class="hidden">
+    <div class="modal-content">
+      <h2>Tu Carrito</h2>
+      <div id="lista-carrito"></div>
+      <p>Total: €<span id="total">0</span></p>
+      <button id="pedido-whatsapp">📩 Enviar pedido por WhatsApp</button>
+      <button id="cerrar-carrito">Cerrar</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>Pago contra reembolso | Contacto: <a href="https://wa.me/34643640757" target="_blank">WhatsApp</a></p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
